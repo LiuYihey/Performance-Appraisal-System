@@ -138,9 +138,9 @@ async function handleSubmit() {
       score: parseFloat(d.score),
       comment: d.comment
     }))
-    await submitSelfEval({ record_id: recordId, scores })
-    showToast({ message: '自评已提交', type: 'success' })
-    setTimeout(() => router.replace('/employee/assessments'), 1000)
+    const response = await submitSelfEval({ record_id: recordId, scores })
+    showToast({ message: response.message || '自评已提交', type: 'success' })
+    setTimeout(() => router.replace('/employee/assessments'), 1500)
   } catch (e) {
     showToast(e.response?.data?.detail || '提交失败')
   }

@@ -110,48 +110,68 @@ class WeComService:
     async def send_app_message(self, touser: str, msgtype: str = "text",
                                 agentid: int | None = None, content: str = "") -> dict:
         """发送应用消息"""
-        token = await self.get_access_token()
-        url = f"{WECOM_API_BASE}/message/send"
-        body = {
-            "touser": touser,
-            "msgtype": msgtype,
-            "agentid": agentid or int(settings.WECOM_AGENT_ID),
-            "text": {"content": content},
-        }
+        import logging
+        logger = logging.getLogger(__name__)
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(url, json=body)
-            data = resp.json()
+        try:
+            token = await self.get_access_token()
+            url = f"{WECOM_API_BASE}/message/send?access_token={token}"
+            body = {
+                "touser": touser,
+                "msgtype": msgtype,
+                "agentid": agentid or int(settings.WECOM_AGENT_ID),
+                "text": {"content": content},
+            }
 
-        if data.get("errcode") != 0:
-            raise Exception(f"发送消息失败: {data}")
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(url, json=body)
+                data = resp.json()
 
-        return data
+            if data.get("errcode") != 0:
+                logger.error(f"发送应用消息失败 - 用户:{touser}, 错误码:{data.get('errcode')}, 错误信息:{data.get('errmsg')}")
+                raise Exception(f"发送消息失败: {data}")
+
+            logger.info(f"成功发送应用消息给用户 {touser}")
+            return data
+
+        except Exception as e:
+            logger.error(f"发送应用消息异常 - 用户:{touser}, 异常:{str(e)}")
+            raise
 
     async def send_textcard(self, touser: str, title: str, description: str,
                              url: str, agentid: int | None = None) -> dict:
         """发送图文卡片消息（适合考核通知）"""
-        token = await self.get_access_token()
-        api_url = f"{WECOM_API_BASE}/message/send"
-        body = {
-            "touser": touser,
-            "msgtype": "textcard",
-            "agentid": agentid or int(settings.WECOM_AGENT_ID),
-            "textcard": {
-                "title": title,
-                "description": description,
-                "url": url,
-            },
-        }
+        import logging
+        logger = logging.getLogger(__name__)
 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(api_url, json=body)
-            data = resp.json()
+        try:
+            token = await self.get_access_token()
+            api_url = f"{WECOM_API_BASE}/message/send?access_token={token}"
+            body = {
+                "touser": touser,
+                "msgtype": "textcard",
+                "agentid": agentid or int(settings.WECOM_AGENT_ID),
+                "textcard": {
+                    "title": title,
+                    "description": description,
+                    "url": url,
+                },
+            }
 
-        if data.get("errcode") != 0:
-            raise Exception(f"发送卡片消息失败: {data}")
+            async with httpx.AsyncClient() as client:
+                resp = await client.post(api_url, json=body)
+                data = resp.json()
 
-        return data
+            if data.get("errcode") != 0:
+                logger.error(f"发送卡片消息失败 - 用户:{touser}, 错误码:{data.get('errcode')}, 错误信息:{data.get('errmsg')}")
+                raise Exception(f"发送卡片消息失败: {data}")
+
+            logger.info(f"成功发送卡片消息给用户 {touser}: {title}")
+            return data
+
+        except Exception as e:
+            logger.error(f"发送卡片消息异常 - 用户:{touser}, 标题:{title}, 异常:{str(e)}")
+            raise
 
 
 # 单例

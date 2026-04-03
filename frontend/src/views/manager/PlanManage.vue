@@ -16,6 +16,7 @@
             </div>
             <div class="plan-body">
               <div class="plan-row"><span class="label">周期</span><span>{{ cycleLabel(p.cycle_type) }}</span></div>
+              <div class="plan-row"><span class="label">创建者</span><span>{{ p.created_by_name || '未知' }}</span></div>
               <div class="plan-row"><span class="label">自评截止</span><span>{{ p.self_eval_end || '未设置' }}</span></div>
               <div class="plan-row"><span class="label">开始日期</span><span>{{ p.start_date?.split('T')[0] }}</span></div>
             </div>
@@ -32,6 +33,7 @@
             </div>
             <div class="plan-body">
               <div class="plan-row"><span class="label">周期</span><span>{{ cycleLabel(p.cycle_type) }}</span></div>
+              <div class="plan-row"><span class="label">创建者</span><span>{{ p.created_by_name || '未知' }}</span></div>
               <div class="plan-row"><span class="label">开始</span><span>{{ p.start_date?.split('T')[0] }}</span></div>
               <div class="plan-row"><span class="label">结束</span><span>{{ p.end_date?.split('T')[0] }}</span></div>
             </div>
@@ -67,17 +69,17 @@
           <div class="section-title" style="padding:16px 16px 8px;">审批链</div>
           <van-checkbox-group v-model="form.approval_chain">
             <van-cell-group>
-              <van-cell clickable @click="toggleChain('direct_leader')">
+              <van-cell>
                 <template #title>
                   <van-checkbox name="direct_leader" shape="square">直属上级</van-checkbox>
                 </template>
               </van-cell>
-              <van-cell clickable @click="toggleChain('vp')">
+              <van-cell>
                 <template #title>
                   <van-checkbox name="vp" shape="square">VP 审批</van-checkbox>
                 </template>
               </van-cell>
-              <van-cell clickable @click="toggleChain('hr')">
+              <van-cell>
                 <template #title>
                   <van-checkbox name="hr" shape="square">HR 终审</van-checkbox>
                 </template>
@@ -129,11 +131,6 @@ function getStatusClass(s) {
   if (s === 'running') return 'status-self-eval'
   if (s === 'published' || s === 'archived') return 'status-completed'
   return 'status-pending'
-}
-function toggleChain(val) {
-  const idx = form.value.approval_chain.indexOf(val)
-  if (idx >= 0) form.value.approval_chain.splice(idx, 1)
-  else form.value.approval_chain.push(val)
 }
 
 async function onCreatePlan() {

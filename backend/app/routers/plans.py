@@ -34,16 +34,26 @@ class PlanCreate(BaseModel):
 
 @router.get("/plans")
 def list_plans(user: UserInfo = Depends(get_login_user), db: Session = Depends(get_db)):
-    stmt = select(AssessmentPlan).order_by(AssessmentPlan.created_at.desc())
-    plans = db.execute(stmt).scalars().all()
+    # 联表查询获取创建者姓名
+    stmt = (
+        select(AssessmentPlan, Employee.name)
+        .outerjoin(Employee, AssessmentPlan.created_by == Employee.id)
+        .order_by(AssessmentPlan.created_at.desc())
+    )
+    rows = db.execute(stmt).all()
+
     return [
         {
-            "id": p.id, "name": p.name, "cycle_type": p.cycle_type,
-            "status": p.status, "start_date": str(p.start_date),
-            "end_date": str(p.end_date),
-            "self_eval_end": str(p.self_eval_end) if p.self_eval_end else None,
+            "id": row[0].id,
+            "name": row[0].name,
+            "cycle_type": row[0].cycle_type,
+            "status": row[0].status,
+            "start_date": str(row[0].start_date),
+            "end_date": str(row[0].end_date),
+            "self_eval_end": str(row[0].self_eval_end) if row[0].self_eval_end else None,
+            "created_by_name": row[1] if row[1] else "系统",
         }
-        for p in plans
+        for row in rows
     ]
 
 
@@ -74,24 +84,34 @@ async def create_plan(body: PlanCreate, user: UserInfo = Depends(require_hr_user
         db.add(record)
     db.flush()
 
+    # 提取员工信息用于异步推送（避免 DetachedInstanceError）
+    employee_data = [(emp.wecom_userid, emp.name) for emp in employees]
+
     # 异步推送企微消息给所有员工
     async def send_notifications():
-        for emp in employees:
+        import logging
+        logger = logging.getLogger(__name__)
+        success_count = 0
+        fail_count = 0
+
+        for wecom_userid, emp_name in employee_data:
             try:
                 # 构造消息内容
                 self_eval_end_str = body.self_eval_end if body.self_eval_end else "待定"
                 description = f"考核周期：{body.cycle_type}\n自评截止时间：{self_eval_end_str}\n请及时完成自评"
 
                 await wecom_service.send_textcard(
-                    touser=emp.wecom_userid,
+                    touser=wecom_userid,
                     title=f"新考核通知：{body.name}",
                     description=description,
                     url=f"{settings.APP_BASE_URL}/employee/assessments"
                 )
+                success_count += 1
             except Exception as e:
-                # 记录错误但不影响主流程
-                import logging
-                logging.error(f"发送消息给 {emp.name} 失败: {str(e)}")
+                fail_count += 1
+                logger.error(f"发送消息给 {emp_name}({wecom_userid}) 失败: {str(e)}")
+
+        logger.info(f"考核计划 {body.name} 消息推送完成 - 成功:{success_count}, 失败:{fail_count}, 总计:{len(employee_data)}")
 
     # 在后台执行消息推送
     asyncio.create_task(send_notifications())

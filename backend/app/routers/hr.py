@@ -50,7 +50,12 @@ def vp_approve(body: VPApproveBody, user: UserInfo = Depends(get_login_user), db
 
 @router.get("/manager/pending-evals")
 def manager_pending_evals(user: UserInfo = Depends(get_login_user), db: Session = Depends(get_db)):
+    # 获取下属ID列表
     sub_ids = [r[0] for r in db.execute(select(Employee.id).where(Employee.direct_leader_id == user.id, Employee.status == "active")).all()]
+
+    # 添加自己的ID（管理员可以审批自己）
+    sub_ids.append(user.id)
+
     if not sub_ids:
         return []
     rows = db.execute(
